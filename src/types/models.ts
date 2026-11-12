@@ -38,3 +38,15 @@ export const exerciseTypes = {
   SENTENCE_TRANSLATION: "Traduction de phrase",
   FILL_IN_THE_BLANK: "Phrase à compléter",
 };
+
+export type ReuseRequest = {
+  count: number;
+  types: ("SENTENCE_TRANSLATION" | "FILL_IN_THE_BLANK")[];
+  difficulty: number | null;
+};
+export type ReuseAvailability = {
+  type: ReuseRequest["types"][number];
+  /** 0 means all difficulties, deduplicated. */
+  difficulty: number;
+  available: number;
+};

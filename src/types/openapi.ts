@@ -84,6 +84,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/exercises/reuse": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["reuse"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/exercises/generate": {
     parameters: {
       query?: never;
@@ -228,6 +244,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/exercises/{id}/hint": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["hint"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/exercises/reusable": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["reusable"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/exercises/history": {
     parameters: {
       query?: never;
@@ -261,11 +309,8 @@ export interface components {
       traductions_fr?: string[];
     };
     JsonNode: {
-      floatingPointNumber?: boolean;
       number?: boolean;
-      valueNode?: boolean;
-      container?: boolean;
-      missingNode?: boolean;
+      floatingPointNumber?: boolean;
       /** @enum {string} */
       nodeType?:
         | "ARRAY"
@@ -279,13 +324,16 @@ export interface components {
         | "STRING";
       string?: boolean;
       integralNumber?: boolean;
+      missingNode?: boolean;
+      valueNode?: boolean;
+      container?: boolean;
       pojo?: boolean;
       short?: boolean;
       int?: boolean;
       long?: boolean;
-      bigInteger?: boolean;
       double?: boolean;
       bigDecimal?: boolean;
+      bigInteger?: boolean;
       /** @deprecated */
       textual?: boolean;
       boolean?: boolean;
@@ -309,7 +357,7 @@ export interface components {
       /** Format: date-time */
       answeredAt?: string;
     };
-    GenerationRequest: {
+    ReuseRequest: {
       /** Format: int32 */
       count?: number;
       types: (
@@ -322,8 +370,6 @@ export interface components {
       )[];
       /** Format: int32 */
       difficulty?: number;
-      /** @enum {string} */
-      strategy: "NEW" | "DIFFICULT" | "DUE" | "RANDOM";
     };
     Batch: {
       source?: string;
@@ -347,6 +393,22 @@ export interface components {
       /** Format: int32 */
       difficulty?: number;
       newVocabulary?: string[];
+    };
+    GenerationRequest: {
+      /** Format: int32 */
+      count?: number;
+      types: (
+        | "HANZI_TO_FRENCH"
+        | "HANZI_TO_PINYIN"
+        | "PINYIN_TO_HANZI"
+        | "MULTIPLE_CHOICE"
+        | "SENTENCE_TRANSLATION"
+        | "FILL_IN_THE_BLANK"
+      )[];
+      /** Format: int32 */
+      difficulty?: number;
+      /** @enum {string} */
+      strategy: "NEW" | "DIFFICULT" | "DUE" | "RANDOM";
     };
     PageResponseWordView: {
       content?: components["schemas"]["WordView"][];
@@ -410,6 +472,23 @@ export interface components {
       /** Format: date-time */
       reviewedAt: string;
       answer: string;
+    };
+    Hint: {
+      firstLetter?: string;
+    };
+    Availability: {
+      /** @enum {string} */
+      type?:
+        | "HANZI_TO_FRENCH"
+        | "HANZI_TO_PINYIN"
+        | "PINYIN_TO_HANZI"
+        | "MULTIPLE_CHOICE"
+        | "SENTENCE_TRANSLATION"
+        | "FILL_IN_THE_BLANK";
+      /** Format: int32 */
+      difficulty?: number;
+      /** Format: int64 */
+      available?: number;
     };
     PageResponseCorrection: {
       content?: components["schemas"]["Correction"][];
@@ -625,6 +704,30 @@ export interface operations {
       };
     };
   };
+  reuse: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReuseRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["Batch"];
+        };
+      };
+    };
+  };
   generate: {
     parameters: {
       query?: never;
@@ -811,6 +914,48 @@ export interface operations {
         };
         content: {
           "*/*": components["schemas"]["ExerciseView"];
+        };
+      };
+    };
+  };
+  hint: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["Hint"];
+        };
+      };
+    };
+  };
+  reusable: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["Availability"][];
         };
       };
     };

@@ -118,3 +118,19 @@ npm run preview
 Vitest utilise MSW avec rejet des requêtes non simulées. Playwright intercepte toutes les routes du backend et exécute les parcours sur Chromium ordinateur et écran mobile. Les tests ne contactent jamais OpenAI et ne modifient pas la base réelle.
 
 La configuration Playwright réutilise un serveur local sur 5173 hors CI, ou le lance automatiquement. Pour un hébergement statique, configurer le serveur pour retourner `index.html` sur les routes de l’application ; le backend mono-utilisateur reste destiné à un usage local.
+
+### Indices et clavier
+
+`GET /api/exercises/{id}/hint` retourne `{"firstLetter":"a"}`. Cette route ajoutée au backend ne soumet aucune réponse, ne modifie pas la progression et ne renvoie pas la correction complète. Elle choisit une réponse acceptée de façon déterministe et renvoie son premier caractère Unicode complet (accent compris). Un exercice inconnu retourne 404.
+
+Le bouton « Afficher un indice » appelle cette route. L’indice est aussi demandé automatiquement après 10 secondes consécutives avec une réponse vide ; une saisie interrompt ce délai. La touche I sert uniquement à saisir du texte. Après correction, Entrée passe à la question suivante, ou au bilan pour la dernière question. Les touches maintenues et la composition de texte ne déclenchent pas cette navigation.
+
+Redémarrer le backend après compilation pour rendre la nouvelle route disponible. Le contrat local inclut désormais cette extension ; le contrat actif comparé le 9 novembre correspondait à la version précédente sans indice.
+
+## Phrases enregistrées — sans IA
+
+Dans **Entraînement**, choisir **Phrases enregistrées — sans IA**. Le frontend affiche la réserve de traductions de phrases et de phrases à compléter, avec filtres de type et de difficulté. Le nombre d’exercices peut être réglé de 1 à 20 ; si la réserve est plus petite, seules les phrases disponibles sont proposées, sans répétition du même couple type/phrase dans la séance.
+
+Ce mode utilise uniquement `GET /api/exercises/reusable` puis `POST /api/exercises/reuse`. Il n’appelle jamais la route de génération. Il fonctionne sans clé OpenAI dès que des phrases ont déjà été enregistrées. Chaque séance reçoit de nouvelles tentatives, avec des réponses et une progression indépendantes des tentatives précédentes. La source affichée est `reused` (« phrases enregistrées · sans appel à OpenAI »).
+
+Si la réserve est vide, le bouton est désactivé et un message propose de changer les filtres ou d’alimenter d’abord la réserve via le mode de génération habituel. Redémarrer le backend mis à jour pour appliquer la migration V2 et exposer les nouvelles routes.

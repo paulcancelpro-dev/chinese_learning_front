@@ -172,3 +172,124 @@ describe("parcours utilisateur", () => {
     );
   });
 });
+
+describe("réutilisation des phrases", () => {
+  it("ouvre une nouvelle tentative sans appeler la génération", async () => {
+    let generations = 0;
+    let reuses = 0;
+    server.use(
+      http.get("http://localhost:8080/api/exercises/reusable", () =>
+        HttpResponse.json([
+          { type: "SENTENCE_TRANSLATION", difficulty: 0, available: 1 },
+          { type: "SENTENCE_TRANSLATION", difficulty: 2, available: 1 },
+        ]),
+      ),
+      http.post("http://localhost:8080/api/exercises/generate", () => {
+        generations++;
+        return HttpResponse.json(batch);
+      }),
+      http.post(
+        "http://localhost:8080/api/exercises/reuse",
+        async ({ request }) => {
+          reuses++;
+          expect(await request.json()).toEqual({
+            count: 10,
+            types: ["SENTENCE_TRANSLATION"],
+            difficulty: null,
+          });
+          return HttpResponse.json({
+            source: "reused",
+            exercises: [
+              {
+                ...batch.exercises[0],
+                id: "new-attempt",
+                type: "SENTENCE_TRANSLATION",
+                question: "我的朋友",
+                choices: [],
+              },
+            ],
+          });
+        },
+      ),
+    );
+    mount("/practice");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Phrases enregistrées — sans IA",
+      }),
+    );
+    expect(
+      await screen.findByText("1 phrase disponible pour ces critères."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/La séance contiendra 1 exercice/),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Réviser ces phrases" }),
+    );
+    expect(await screen.findByText("Question 1 / 1")).toBeInTheDocument();
+    expect(
+      screen.getByText(/phrases enregistrées · sans appel à OpenAI/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Votre réponse" })).toHaveValue(
+      "",
+    );
+    expect(reuses).toBe(1);
+    expect(generations).toBe(0);
+  });
+
+  it("signale une réserve vide sans proposer de génération automatique", async () => {
+    server.use(
+      http.get("http://localhost:8080/api/exercises/reusable", () =>
+        HttpResponse.json([]),
+      ),
+    );
+    mount("/practice");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Phrases enregistrées — sans IA",
+      }),
+    );
+    expect(
+      await screen.findByText(/Aucune phrase disponible/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Réviser ces phrases" }),
+    ).toBeDisabled();
+  });
+
+  it("filtre la réserve par difficulté et par type", async () => {
+    server.use(
+      http.get("http://localhost:8080/api/exercises/reusable", () =>
+        HttpResponse.json([
+          { type: "SENTENCE_TRANSLATION", difficulty: 0, available: 2 },
+          { type: "SENTENCE_TRANSLATION", difficulty: 2, available: 2 },
+          { type: "FILL_IN_THE_BLANK", difficulty: 3, available: 1 },
+        ]),
+      ),
+    );
+    mount("/practice");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Phrases enregistrées — sans IA",
+      }),
+    );
+    await screen.findByText("2 phrases disponibles pour ces critères.");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Difficulté des phrases"),
+      "3",
+    );
+    expect(
+      screen.getByRole("button", { name: "Réviser ces phrases" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Phrase à compléter/ }),
+    );
+    expect(
+      screen.getByText("1 phrase disponible pour ces critères."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Réviser ces phrases" }),
+    ).toBeEnabled();
+  });
+});

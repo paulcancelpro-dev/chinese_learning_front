@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": { "title": "OpenAPI definition", "version": "v0" },
   "servers": [
-    { "url": "http://localhost:8080", "description": "Generated server url" }
+    { "url": "http://127.0.0.1:58083", "description": "Generated server url" }
   ],
   "paths": {
     "/api/vocabulary/{id}": {
@@ -216,6 +216,28 @@
         }
       }
     },
+    "/api/exercises/reuse": {
+      "post": {
+        "tags": ["exercise-controller"],
+        "operationId": "reuse",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReuseRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/Batch" } }
+            }
+          }
+        }
+      }
+    },
     "/api/exercises/generate": {
       "post": {
         "tags": ["exercise-controller"],
@@ -396,6 +418,47 @@
         }
       }
     },
+    "/api/exercises/{id}/hint": {
+      "get": {
+        "tags": ["exercise-controller"],
+        "operationId": "hint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": { "schema": { "$ref": "#/components/schemas/Hint" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/exercises/reusable": {
+      "get": {
+        "tags": ["exercise-controller"],
+        "operationId": "reusable",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Availability" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exercises/history": {
       "get": {
         "tags": ["exercise-controller"],
@@ -461,11 +524,8 @@
       "JsonNode": {
         "type": "object",
         "properties": {
-          "floatingPointNumber": { "type": "boolean" },
           "number": { "type": "boolean" },
-          "valueNode": { "type": "boolean" },
-          "container": { "type": "boolean" },
-          "missingNode": { "type": "boolean" },
+          "floatingPointNumber": { "type": "boolean" },
           "nodeType": {
             "type": "string",
             "enum": [
@@ -482,13 +542,16 @@
           },
           "string": { "type": "boolean" },
           "integralNumber": { "type": "boolean" },
+          "missingNode": { "type": "boolean" },
+          "valueNode": { "type": "boolean" },
+          "container": { "type": "boolean" },
           "pojo": { "type": "boolean" },
           "short": { "type": "boolean" },
           "int": { "type": "boolean" },
           "long": { "type": "boolean" },
-          "bigInteger": { "type": "boolean" },
           "double": { "type": "boolean" },
           "bigDecimal": { "type": "boolean" },
+          "bigInteger": { "type": "boolean" },
           "textual": { "type": "boolean", "deprecated": true },
           "boolean": { "type": "boolean" },
           "binary": { "type": "boolean" },
@@ -515,6 +578,72 @@
           "acceptedAnswers": { "type": "array", "items": { "type": "string" } },
           "explanation": { "type": "string" },
           "answeredAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReuseRequest": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 20,
+            "minimum": 1
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "HANZI_TO_FRENCH",
+                "HANZI_TO_PINYIN",
+                "PINYIN_TO_HANZI",
+                "MULTIPLE_CHOICE",
+                "SENTENCE_TRANSLATION",
+                "FILL_IN_THE_BLANK"
+              ]
+            },
+            "maxItems": 2,
+            "minItems": 0
+          },
+          "difficulty": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          }
+        },
+        "required": ["types"]
+      },
+      "Batch": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string" },
+          "exercises": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExerciseView" }
+          }
+        }
+      },
+      "ExerciseView": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sessionId": { "type": "string", "format": "uuid" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "HANZI_TO_FRENCH",
+              "HANZI_TO_PINYIN",
+              "PINYIN_TO_HANZI",
+              "MULTIPLE_CHOICE",
+              "SENTENCE_TRANSLATION",
+              "FILL_IN_THE_BLANK"
+            ]
+          },
+          "question": { "type": "string" },
+          "choices": { "type": "array", "items": { "type": "string" } },
+          "difficulty": { "type": "integer", "format": "int32" },
+          "newVocabulary": { "type": "array", "items": { "type": "string" } }
         }
       },
       "GenerationRequest": {
@@ -554,38 +683,6 @@
           }
         },
         "required": ["strategy", "types"]
-      },
-      "Batch": {
-        "type": "object",
-        "properties": {
-          "source": { "type": "string" },
-          "exercises": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ExerciseView" }
-          }
-        }
-      },
-      "ExerciseView": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "sessionId": { "type": "string", "format": "uuid" },
-          "type": {
-            "type": "string",
-            "enum": [
-              "HANZI_TO_FRENCH",
-              "HANZI_TO_PINYIN",
-              "PINYIN_TO_HANZI",
-              "MULTIPLE_CHOICE",
-              "SENTENCE_TRANSLATION",
-              "FILL_IN_THE_BLANK"
-            ]
-          },
-          "question": { "type": "string" },
-          "choices": { "type": "array", "items": { "type": "string" } },
-          "difficulty": { "type": "integer", "format": "int32" },
-          "newVocabulary": { "type": "array", "items": { "type": "string" } }
-        }
       },
       "PageResponseWordView": {
         "type": "object",
@@ -667,6 +764,28 @@
           "reviewedAt",
           "skill"
         ]
+      },
+      "Hint": {
+        "type": "object",
+        "properties": { "firstLetter": { "type": "string" } }
+      },
+      "Availability": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "HANZI_TO_FRENCH",
+              "HANZI_TO_PINYIN",
+              "PINYIN_TO_HANZI",
+              "MULTIPLE_CHOICE",
+              "SENTENCE_TRANSLATION",
+              "FILL_IN_THE_BLANK"
+            ]
+          },
+          "difficulty": { "type": "integer", "format": "int32" },
+          "available": { "type": "integer", "format": "int64" }
+        }
       },
       "PageResponseCorrection": {
         "type": "object",

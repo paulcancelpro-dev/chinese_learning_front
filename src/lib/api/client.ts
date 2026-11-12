@@ -1,5 +1,7 @@
 import type {
   Batch,
+  ReuseRequest,
+  ReuseAvailability,
   Correction,
   Daily,
   Exercise,
@@ -83,9 +85,14 @@ export const api = {
   revisions: () => request<Daily[]>("/statistics/revisions"),
   history: (page = 0) =>
     request<Page<Correction>>(`/exercises/history?page=${page}&size=20`),
+  hint: (id: string) =>
+    request<{ firstLetter: string }>(`/exercises/${id}/hint`),
   exercise: (id: string) => request<Exercise>(`/exercises/${id}`),
   generate: (value: Generation) =>
     request<Batch>("/exercises/generate", body(value)),
+  reusable: () => request<ReuseAvailability[]>("/exercises/reusable"),
+  reuse: (value: ReuseRequest) =>
+    request<Batch>("/exercises/reuse", body(value)),
   answer: (id: string, answer: string) =>
     request<Correction>(`/exercises/${id}/answers`, body({ answer })),
   import: (kind: "vocabulary" | "progress", value: unknown) =>

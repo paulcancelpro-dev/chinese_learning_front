@@ -107,13 +107,11 @@ test("refuse un JSON invalide puis importe la progression sans transformer les �
   page,
 }) => {
   await page.goto("/import");
-  await page
-    .getByLabel("Fichier JSON")
-    .setInputFiles({
-      name: "broken.json",
-      mimeType: "application/json",
-      buffer: Buffer.from("{invalid"),
-    });
+  await page.getByLabel("Fichier JSON").setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{invalid"),
+  });
   await expect(page.getByRole("alert")).toContainText("JSON valide");
   await expect(
     page.getByRole("button", { name: "Confirmer l’import" }),
@@ -132,13 +130,11 @@ test("refuse un JSON invalide puis importe la progression sans transformer les �
       },
     ],
   };
-  await page
-    .getByLabel("Fichier JSON")
-    .setInputFiles({
-      name: "progress.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(payload)),
-    });
+  await page.getByLabel("Fichier JSON").setInputFiles({
+    name: "progress.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(payload)),
+  });
   await page.getByRole("checkbox").check();
   const request = page.waitForRequest(
     (r) => r.url().endsWith("/progress/import") && r.method() === "POST",
@@ -176,4 +172,61 @@ test("navigation, thème persistant et mise en page sans débordement", async ({
     ).toBe(true);
   }
   expect(errors).toEqual([]);
+});
+
+test("indice automatique après dix secondes et Entrée après correction", async ({
+  page,
+}) => {
+  await page.clock.install();
+  let hintRequests = 0;
+  await page.route("**/api/exercises/*/hint", async (route) => {
+    hintRequests++;
+    await route.fulfill({ json: { firstLetter: "a" } });
+  });
+  await page.goto("/practice");
+  await page.getByRole("button", { name: "Commencer la séance" }).click();
+  await expect(page.getByText("Question 1 / 1")).toBeVisible();
+  await page.clock.fastForward(9000);
+  expect(hintRequests).toBe(0);
+  await page.clock.fastForward(1000);
+  await expect(page.getByText("Première lettre :")).toContainText("a");
+  expect(hintRequests).toBe(1);
+  await expect(page.getByText("朋友 signifie ami.")).toHaveCount(0);
+  await page.getByRole("radio", { name: /ami/ }).check();
+  await page.getByRole("button", { name: "Valider ma réponse" }).click();
+  await expect(page.getByText("朋友 signifie ami.")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Votre bilan de séance" }),
+  ).toBeVisible();
+});
+
+test("bouton indice et saisie de i sans raccourci", async ({ page }) => {
+  await page.clock.install();
+  await page.route("**/api/exercises/generate", (route) =>
+    route.fulfill({
+      json: {
+        ...batch,
+        exercises: [
+          { ...batch.exercises[0], type: "HANZI_TO_FRENCH", choices: [] },
+        ],
+      },
+    }),
+  );
+  let hintRequests = 0;
+  await page.route("**/api/exercises/*/hint", async (route) => {
+    hintRequests++;
+    await route.fulfill({ json: { firstLetter: "a" } });
+  });
+  await page.goto("/practice");
+  await page.getByRole("button", { name: "Commencer la séance" }).click();
+  await page.getByLabel("Votre réponse").press("i");
+  await expect(page.getByLabel("Votre réponse")).toHaveValue("i");
+  await page.clock.fastForward(11000);
+  expect(hintRequests).toBe(0);
+  await page
+    .getByRole("button", { name: "Afficher un indice", exact: true })
+    .click();
+  await expect(page.getByText("Première lettre :")).toContainText("a");
+  expect(hintRequests).toBe(1);
 });

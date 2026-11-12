@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { api, ApiError } from "../lib/api/client";
 import { exerciseTypes, type Exercise, type Correction } from "../types/models";
@@ -68,6 +68,40 @@ function Question({ exercise }: { exercise: Exercise }) {
     },
   });
   const isLast = session.index === session.exercises.length - 1;
+  const [hintRequested, setHintRequested] = useState(false);
+  const canHint =
+    !correction && !conflict && !send.isPending && uncertain === undefined;
+  const hint = useQuery({
+    queryKey: ["exercise-hint", id],
+    queryFn: () => api.hint(id),
+    enabled: hintRequested && canHint,
+    retry: false,
+    staleTime: Infinity,
+  });
+  useEffect(() => {
+    if (!canHint || answer.trim() || hintRequested) return;
+    const timer = window.setTimeout(() => setHintRequested(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [canHint, answer, hintRequested]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      )
+        return;
+      if (event.key === "Enter" && correction) {
+        event.preventDefault();
+        if (isLast) navigate("/practice/results");
+        else setSession({ ...session, index: session.index + 1 });
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [correction, isLast, navigate, session]);
   return (
     <>
       <div className="exercise-meta">
@@ -161,6 +195,36 @@ function Question({ exercise }: { exercise: Exercise }) {
               </label>
             )}
           </fieldset>
+          {!correction && !conflict && (
+            <div className="exercise-hint">
+              <button
+                type="button"
+                className="text-button"
+                disabled={!canHint}
+                onClick={() => setHintRequested(true)}
+              >
+                Afficher un indice
+              </button>
+              <p className="small muted">
+                La première lettre apparaît après 10 secondes si le champ reste
+                vide. Vous pouvez aussi demander un indice avec ce bouton.
+              </p>
+              {hintRequested && canHint && hint.isPending && (
+                <p role="status">Chargement de l’indice…</p>
+              )}
+              {hintRequested && canHint && hint.data && (
+                <p className="notice" role="status">
+                  Première lettre : <strong>{hint.data.firstLetter}</strong>
+                </p>
+              )}
+              {hintRequested && canHint && (
+                <ErrorNotice
+                  error={hint.error}
+                  retry={() => void hint.refetch()}
+                />
+              )}
+            </div>
+          )}
           <ErrorNotice error={send.error} />
           {uncertain !== undefined && !send.isPending && !conflict && (
             <p className="notice">
@@ -199,7 +263,7 @@ function Question({ exercise }: { exercise: Exercise }) {
               else setSession({ ...session, index: session.index + 1 });
             }}
           >
-            {isLast ? "Voir mes résultats" : "Question suivante"}
+            {isLast ? "Voir mes résultats" : "Question suivante"} · Entrée
             <ArrowRight size={18} />
           </button>
         </>
@@ -269,6 +333,7 @@ export default function SessionPage() {
             local: "locale",
             openai: "OpenAI",
             local_fallback: "secours local",
+            reused: "phrases enregistrées · sans appel à OpenAI",
           } as Record<string, string>
         )[session.source] || session.source}
       </p>
